@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func EncodeString(s string) []byte {
+func SerialiseString(s string) []byte {
 	res := make([]byte, 4+len(s))
 	binary.BigEndian.PutUint32(res, uint32(len(s)))
 	copy(res[4:], s)
@@ -34,8 +34,8 @@ func DeserialiseString(r io.Reader) (string, error) {
 // A Part is a string that represents a literal part of the file
 type Part string
 
-func (p Part) Encode() []byte {
-	return EncodeString(string(p))
+func (p Part) Serialise() []byte {
+	return SerialiseString(string(p))
 }
 
 func DeserialisePart(r io.Reader) (Part, error) {
@@ -46,8 +46,8 @@ func DeserialisePart(r io.Reader) (Part, error) {
 // A Name is a string that represents a section of the file that can be substituted with a value
 type Name string
 
-func (n Name) Encode() []byte {
-	return EncodeString(string(n))
+func (n Name) Serialise() []byte {
+	return SerialiseString(string(n))
 }
 
 func DeserialiseName(r io.Reader) (Name, error) {
@@ -61,8 +61,8 @@ type PartName struct {
 	Name
 }
 
-func (pn PartName) Encode() []byte {
-	return append(pn.Part.Encode(), pn.Name.Encode()...)
+func (pn PartName) Serialise() []byte {
+	return append(pn.Part.Serialise(), pn.Name.Serialise()...)
 }
 
 func DeserialisePartName(r io.Reader) (pn PartName, err error) {
@@ -108,14 +108,14 @@ func (s Sub) Sub(to ToSub) (string, error) {
 	return b.String(), nil
 }
 
-func (s Sub) Encode() []byte {
+func (s Sub) Serialise() []byte {
 	res := make([]byte, 4)
 	binary.BigEndian.PutUint32(res, uint32(len(s.PartNames)))
 	for _, pn := range s.PartNames {
-		res = append(res, pn.Encode()...)
+		res = append(res, pn.Serialise()...)
 	}
 
-	return append(res, s.Final.Encode()...)
+	return append(res, s.Final.Serialise()...)
 }
 
 func DeserialiseSub(r io.Reader) (s Sub, err error) {
@@ -163,6 +163,6 @@ func main() {
 
 	fmt.Printf("Substituted result: %s\n", result)
 
-	data := s.Encode()
+	data := s.Serialise()
 	fmt.Printf("Encoded data: %s\n", data)
 }
