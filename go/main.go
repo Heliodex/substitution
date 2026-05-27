@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func SerialiseString(s string) []byte {
+func serialiseString(s string) []byte {
 	res := make([]byte, 4+len(s))
 	binary.BigEndian.PutUint32(res, uint32(len(s)))
 	copy(res[4:], s)
@@ -16,7 +16,7 @@ func SerialiseString(s string) []byte {
 }
 
 // Decode the first 4 bytes to get the length, then read that many bytes for the part
-func DeserialiseString(r io.Reader) (string, error) {
+func deserialiseString(r io.Reader) (string, error) {
 	var lengthBuf [4]byte
 	if _, err := r.Read(lengthBuf[:]); err != nil {
 		return "", errors.New("data too short to decode length")
@@ -31,45 +31,45 @@ func DeserialiseString(r io.Reader) (string, error) {
 	return string(partBuf), nil
 }
 
-// A Part is a string that represents a literal part of the file
-type Part string
+// A part is a string that represents a literal part of the file
+type part string
 
-func (p Part) Serialise() []byte {
-	return SerialiseString(string(p))
+func (p part) Serialise() []byte {
+	return serialiseString(string(p))
 }
 
-func DeserialisePart(r io.Reader) (Part, error) {
-	s, err := DeserialiseString(r)
-	return Part(s), err
+func deserialisePart(r io.Reader) (part, error) {
+	s, err := deserialiseString(r)
+	return part(s), err
 }
 
-// A Name is a string that represents a section of the file that can be substituted with a value
-type Name string
+// A name is a string that represents a section of the file that can be substituted with a value
+type name string
 
-func (n Name) Serialise() []byte {
-	return SerialiseString(string(n))
+func (n name) serialise() []byte {
+	return serialiseString(string(n))
 }
 
-func DeserialiseName(r io.Reader) (Name, error) {
-	s, err := DeserialiseString(r)
-	return Name(s), err
+func deserialiseName(r io.Reader) (name, error) {
+	s, err := deserialiseString(r)
+	return name(s), err
 }
 
 // A PartName is a Part followed by a Name
 type PartName struct {
-	Part
-	Name
+	Part part
+	Name name
 }
 
-func (pn PartName) Serialise() []byte {
-	return append(pn.Part.Serialise(), pn.Name.Serialise()...)
+func (pn PartName) serialise() []byte {
+	return append(pn.Part.Serialise(), pn.Name.serialise()...)
 }
 
-func DeserialisePartName(r io.Reader) (pn PartName, err error) {
-	if pn.Part, err = DeserialisePart(r); err != nil {
+func deserialisePartName(r io.Reader) (pn PartName, err error) {
+	if pn.Part, err = deserialisePart(r); err != nil {
 		return pn, fmt.Errorf("decode part: %w", err)
 	}
-	if pn.Name, err = DeserialiseName(r); err != nil {
+	if pn.Name, err = deserialiseName(r); err != nil {
 		return pn, fmt.Errorf("decode name: %w", err)
 	}
 
@@ -80,7 +80,7 @@ type ToSub map[string]string
 
 type Sub struct {
 	PartNames []PartName
-	Final     Part
+	Final     part
 }
 
 func (s Sub) Sub(to ToSub) (string, error) {
@@ -112,7 +112,7 @@ func (s Sub) Serialise() []byte {
 	res := make([]byte, 4)
 	binary.BigEndian.PutUint32(res, uint32(len(s.PartNames)))
 	for _, pn := range s.PartNames {
-		res = append(res, pn.Serialise()...)
+		res = append(res, pn.serialise()...)
 	}
 
 	return append(res, s.Final.Serialise()...)
@@ -127,42 +127,14 @@ func DeserialiseSub(r io.Reader) (s Sub, err error) {
 	l := binary.BigEndian.Uint32(lengthBuf[:])
 	s.PartNames = make([]PartName, l)
 	for i := range l {
-		if s.PartNames[i], err = DeserialisePartName(r); err != nil {
+		if s.PartNames[i], err = deserialisePartName(r); err != nil {
 			return s, fmt.Errorf("decode partname %d: %w", i, err)
 		}
 	}
 
-	if s.Final, err = DeserialisePart(r); err != nil {
+	if s.Final, err = deserialisePart(r); err != nil {
 		return s, fmt.Errorf("decode final part: %w", err)
 	}
 
 	return
-}
-
-func main() {
-	s := Sub{
-		PartNames: []PartName{
-			{Part: "Hello ", Name: "name"},
-			{Part: "! You have ", Name: "count"},
-		},
-		Final: " new messages.",
-	}
-
-	fmt.Println(s)
-
-	toSub := ToSub{
-		"name":  "Heliodex",
-		"count": "67",
-	}
-
-	result, err := s.Sub(toSub)
-	if err != nil {
-		fmt.Printf("Error substituting: %v\n", err)
-		return
-	}
-
-	fmt.Printf("Substituted result: %s\n", result)
-
-	data := s.Serialise()
-	fmt.Printf("Encoded data: %s\n", data)
 }
