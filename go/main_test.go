@@ -71,7 +71,7 @@ func TestSerialisation(t *testing.T) {
 	}
 
 	if !s.Equals(s2) {
-		t.Fatalf("final mismatch: expected %q, got %q", s.Final, s2.Final)
+		t.Fatalf("deserialisation mismatch: expected %q, got %q", s.Final, s2.Final)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestDeserialisationTooShortLength(t *testing.T) {
 }
 
 func TestDeserialisationTooShortString(t *testing.T) {
-	_, err := sub.DeserialiseSub(bytes.NewReader([]byte{0, 0, 0, 1, 0}))
+	_, err := sub.DeserialiseSub(bytes.NewReader([]byte{0, 0, 0, 1, 0, 0, 0, 1}))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

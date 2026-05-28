@@ -8,6 +8,17 @@ import (
 	"strings"
 )
 
+func ReadExact(r io.Reader, buf []byte) error {
+	n, err := r.Read(buf)
+	if err != nil {
+		return err
+	}
+	if n < len(buf) {
+		return errors.New("not enough bytes to read")
+	}
+	return nil
+}
+
 func serialiseString(s string) []byte {
 	res := make([]byte, 4+len(s))
 	binary.BigEndian.PutUint32(res, uint32(len(s)))
@@ -21,20 +32,27 @@ var (
 	ErrDataTooShortString = fmt.Errorf("%w string", ErrDataTooShort)
 )
 
+func getLen(r io.Reader) (uint32, error) {
+	var lengthBuf [4]byte
+	if ReadExact(r, lengthBuf[:]) != nil {
+		return 0, ErrDataTooShortLength
+	}
+	return binary.BigEndian.Uint32(lengthBuf[:]), nil
+}
+
 // Decode the first 4 bytes to get the length, then read that many bytes for the part
 func deserialiseString(r io.Reader) (string, error) {
-	var lengthBuf [4]byte
-	if _, err := r.Read(lengthBuf[:]); err != nil {
-		return "", ErrDataTooShortLength
+	l, err := getLen(r)
+	if err != nil {
+		return "", err
 	}
 
-	l := binary.BigEndian.Uint32(lengthBuf[:])
-	partBuf := make([]byte, l)
-	if _, err := r.Read(partBuf); err != nil {
+	strBuf := make([]byte, l)
+	if ReadExact(r, strBuf) != nil {
 		return "", ErrDataTooShortString
 	}
 
-	return string(partBuf), nil
+	return string(strBuf), nil
 }
 
 // A part is a string that represents a literal part of the file
@@ -99,12 +117,12 @@ func (s Sub) Sub(to ToSub) (string, error) {
 
 	for _, pn := range s.PartNames {
 		n := string(pn.Name)
-
-		b.WriteString(string(pn.Part))
 		val, ok := to[n]
 		if !ok {
 			return "", fmt.Errorf("%w: %q", ErrMissingValue, pn.Name)
 		}
+
+		b.WriteString(string(pn.Part))
 		b.WriteString(val)
 
 		delete(to, n)
@@ -120,10 +138,6 @@ func (s Sub) Sub(to ToSub) (string, error) {
 }
 
 func (s Sub) Equals(other Sub) bool {
-	if s.Final != other.Final {
-		return false
-	}
-
 	if len(s.PartNames) != len(other.PartNames) {
 		return false
 	}
@@ -134,7 +148,7 @@ func (s Sub) Equals(other Sub) bool {
 		}
 	}
 
-	return true
+	return s.Final == other.Final
 }
 
 func (s Sub) Serialise() []byte {
@@ -148,12 +162,11 @@ func (s Sub) Serialise() []byte {
 }
 
 func DeserialiseSub(r io.Reader) (s Sub, err error) {
-	var lengthBuf [4]byte
-	if _, err = r.Read(lengthBuf[:]); err != nil {
-		return s, errors.New("data too short to decode length")
+	l, err := getLen(r)
+	if err != nil {
+		return s, err
 	}
 
-	l := binary.BigEndian.Uint32(lengthBuf[:])
 	s.PartNames = make([]PartName, l)
 	for i := range l {
 		if s.PartNames[i], err = deserialisePartName(r); err != nil {
