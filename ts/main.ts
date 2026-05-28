@@ -10,7 +10,8 @@ export class BufReader {
 	off = 0
 	constructor(private buf: Buffer) {}
 	readExact(n: number): Buffer {
-		if (this.buf.length - this.off < n) throw new Error("not enough bytes to read")
+		if (this.buf.length - this.off < n)
+			throw new Error("not enough bytes to read")
 
 		const r = this.buf.subarray(this.off, this.off + n)
 		this.off += n
@@ -36,14 +37,14 @@ function getLen(r: BufReader): number {
 
 function getStr(r: BufReader, l: number): string {
 	try {
-		return  r.readExact(l).toString("utf8")
+		return r.readExact(l).toString("utf8")
 	} catch {
 		throw ErrDataTooShortString
 	}
 }
 
 function deserialiseString(r: BufReader): string {
-	return getStr(r,  getLen(r))
+	return getStr(r, getLen(r))
 }
 
 export type ToSub = { [_: string]: string }
@@ -130,8 +131,7 @@ export class Sub {
 		const l = getLen(r)
 
 		const partNames: PartName[] = []
-		for (let i = 0; i < l; i++) 
-			partNames.push(PartName.deserialise(r))
+		for (let i = 0; i < l; i++) partNames.push(PartName.deserialise(r))
 
 		return new Sub(partNames, deserialiseString(r))
 	}

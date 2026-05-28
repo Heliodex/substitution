@@ -1,4 +1,4 @@
-import { expect,  test } from "bun:test"
+import { expect, test } from "bun:test"
 import * as sub from "./main"
 
 const s = new sub.Sub(
@@ -59,7 +59,7 @@ test("DeserialisationTooShortLength", () => {
 test("DeserialisationTooShortString", () => {
 	let err: Error | null = null
 	try {
-		sub.Sub.Deserialise(Buffer.from([0, 0, 0, 1, 0,0,0,1]))
+		sub.Sub.Deserialise(Buffer.from([0, 0, 0, 1, 0, 0, 0, 1]))
 	} catch (e) {
 		err = e as Error
 	}
