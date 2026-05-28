@@ -15,17 +15,23 @@ func serialiseString(s string) []byte {
 	return res
 }
 
+var (
+	ErrDataTooShort       = errors.New("data too short to decode")
+	ErrDataTooShortLength = fmt.Errorf("%w length", ErrDataTooShort)
+	ErrDataTooShortString = fmt.Errorf("%w string", ErrDataTooShort)
+)
+
 // Decode the first 4 bytes to get the length, then read that many bytes for the part
 func deserialiseString(r io.Reader) (string, error) {
 	var lengthBuf [4]byte
 	if _, err := r.Read(lengthBuf[:]); err != nil {
-		return "", errors.New("data too short to decode length")
+		return "", ErrDataTooShortLength
 	}
 
 	l := binary.BigEndian.Uint32(lengthBuf[:])
 	partBuf := make([]byte, l)
 	if _, err := r.Read(partBuf); err != nil {
-		return "", errors.New("data too short to decode string")
+		return "", ErrDataTooShortString
 	}
 
 	return string(partBuf), nil
@@ -83,6 +89,11 @@ type Sub struct {
 	Final     part
 }
 
+var (
+	ErrMissingValue = errors.New("missing value for name")
+	ErrExtraValues  = errors.New("extra values provided for names")
+)
+
 func (s Sub) Sub(to ToSub) (string, error) {
 	var b strings.Builder
 
@@ -92,7 +103,7 @@ func (s Sub) Sub(to ToSub) (string, error) {
 		b.WriteString(string(pn.Part))
 		val, ok := to[n]
 		if !ok {
-			return "", fmt.Errorf("missing value for name %q", pn.Name)
+			return "", fmt.Errorf("%w: %q", ErrMissingValue, pn.Name)
 		}
 		b.WriteString(val)
 
@@ -100,12 +111,30 @@ func (s Sub) Sub(to ToSub) (string, error) {
 	}
 
 	if len(to) > 0 {
-		return "", fmt.Errorf("extra values provided for names: %v", to)
+		return "", fmt.Errorf("%w: %v", ErrExtraValues, to)
 	}
 
 	b.WriteString(string(s.Final))
 
 	return b.String(), nil
+}
+
+func (s Sub) Equals(other Sub) bool {
+	if s.Final != other.Final {
+		return false
+	}
+
+	if len(s.PartNames) != len(other.PartNames) {
+		return false
+	}
+
+	for i, v := range s.PartNames {
+		if v != other.PartNames[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (s Sub) Serialise() []byte {

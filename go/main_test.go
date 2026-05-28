@@ -1,23 +1,22 @@
 package main_test
 
 import (
-	"fmt"
+	"bytes"
+	"errors"
 	"testing"
 
 	sub "github.com/Heliodex/substitution"
 )
 
-func Test(t *testing.T) {
-	s := sub.Sub{
-		PartNames: []sub.PartName{
-			{Part: "Hello ", Name: "name"},
-			{Part: "! You have ", Name: "count"},
-		},
-		Final: " new messages.",
-	}
+var s = sub.Sub{
+	PartNames: []sub.PartName{
+		{Part: "Hello ", Name: "name"},
+		{Part: "! You have ", Name: "count"},
+	},
+	Final: " new messages.",
+}
 
-	fmt.Println(s)
-
+func TestSubstitute(t *testing.T) {
 	toSub := sub.ToSub{
 		"name":  "Heliodex",
 		"count": "67",
@@ -25,12 +24,99 @@ func Test(t *testing.T) {
 
 	result, err := s.Sub(toSub)
 	if err != nil {
-		fmt.Printf("Error substituting: %v\n", err)
-		return
+		t.Fatal(err)
 	}
 
-	fmt.Printf("Substituted result: %s\n", result)
+	if result != "Hello Heliodex! You have 67 new messages." {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
 
+func TestSubstituteMissing(t *testing.T) {
+	toSub := sub.ToSub{
+		"name": "Heliodex",
+	}
+
+	result, err := s.Sub(toSub)
+	if err == nil {
+		t.Fatalf("expected error, got result: %s", result)
+	}
+	if !errors.Is(err, sub.ErrMissingValue) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSubstituteExtra(t *testing.T) {
+	toSub := sub.ToSub{
+		"name":  "Heliodex",
+		"count": "67",
+		"extra": "value",
+	}
+
+	result, err := s.Sub(toSub)
+	if err == nil {
+		t.Fatalf("expected error, got result: %s", result)
+	}
+	if !errors.Is(err, sub.ErrExtraValues) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSerialisation(t *testing.T) {
 	data := s.Serialise()
-	fmt.Printf("Encoded data: %s\n", data)
+
+	s2, err := sub.DeserialiseSub(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !s.Equals(s2) {
+		t.Fatalf("final mismatch: expected %q, got %q", s.Final, s2.Final)
+	}
+}
+
+func TestDeserialisationTooShortLength(t *testing.T) {
+	s, err := sub.DeserialiseSub(bytes.NewReader([]byte{0, 0, 0}))
+	if err == nil {
+		t.Fatalf("expected error, got s: %v", s)
+	}
+	if !errors.Is(err, sub.ErrDataTooShortLength) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDeserialisationTooShortString(t *testing.T) {
+	_, err := sub.DeserialiseSub(bytes.NewReader([]byte{0, 0, 0, 1, 0}))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, sub.ErrDataTooShortString) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEquals(t *testing.T) {
+	s2 := sub.Sub{
+		PartNames: []sub.PartName{
+			{Part: "Hello ", Name: "name"},
+			{Part: "! You have ", Name: "count"},
+		},
+		Final: " new messages.",
+	}
+
+	if !s.Equals(s2) {
+		t.Fatal("expected subs to be equal")
+	}
+
+	s3 := sub.Sub{
+		PartNames: []sub.PartName{
+			{Part: "Sup ", Name: "name"},
+			{Part: ", you got ", Name: "num"},
+		},
+		Final: " new pings",
+	}
+
+	if s.Equals(s3) {
+		t.Fatal("expected subs to not be equal")
+	}
 }
