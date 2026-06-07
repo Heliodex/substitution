@@ -1,18 +1,20 @@
 import { expect, test } from "bun:test"
 import * as sub from "./main"
 
+// Test multiple substitutions of the same name
 const s = new sub.Sub(
 	[
 		new sub.PartName("Hello ", "name"),
 		new sub.PartName("! You have ", "count"),
+		new sub.PartName(" new messages. Thanks, ", "name"),
 	],
-	" new messages."
+	"!"
 )
 
 test("Substitute", () => {
 	const toSub = { name: "Heliodex", count: "67" } as sub.ToSub
 	const result = s.Sub({ ...toSub })
-	expect(result).toBe("Hello Heliodex! You have 67 new messages.")
+	expect(result).toBe("Hello Heliodex! You have 67 new messages. Thanks, Heliodex!")
 })
 
 test("SubstituteMissing", () => {
@@ -36,7 +38,7 @@ test("SubstituteExtra", () => {
 		err = e as Error
 	}
 	expect(err).not.toBeNull()
-	expect(err?.message).toContain(sub.ErrExtraValues.message)
+	expect(err?.message).toContain(sub.ErrExtraValue.message)
 })
 
 test("Serialisation", () => {
@@ -72,8 +74,9 @@ test("Equals", () => {
 		[
 			new sub.PartName("Hello ", "name"),
 			new sub.PartName("! You have ", "count"),
+			new sub.PartName(" new messages. Thanks, ", "name"),
 		],
-		" new messages."
+		"!"
 	)
 
 	expect(s.Equals(s2)).toBe(true)
@@ -82,8 +85,9 @@ test("Equals", () => {
 		[
 			new sub.PartName("Sup ", "name"),
 			new sub.PartName(", you got ", "num"),
+			new sub.PartName(" new pings. Thanks, ", "name"),
 		],
-		" new pings"
+		"!"
 	)
 
 	expect(s.Equals(s3)).toBe(false)

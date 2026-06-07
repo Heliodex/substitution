@@ -109,27 +109,32 @@ type Sub struct {
 
 var (
 	ErrMissingValue = errors.New("missing value for name")
-	ErrExtraValues  = errors.New("extra values provided for names")
+	ErrExtraValue   = errors.New("extra value provided for name")
 )
 
 func (s Sub) Sub(to ToSub) (string, error) {
+	seen := make(map[string]struct{})
+	for _, pn := range s.PartNames {
+		n := string(pn.Name)
+		if _, ok := to[n]; !ok {
+			return "", fmt.Errorf("%w: %q", ErrMissingValue, n)
+		}
+		seen[n] = struct{}{}
+	}
+
+	for k := range to {
+		if _, ok := seen[k]; !ok {
+			return "", fmt.Errorf("%w: %q", ErrExtraValue, k)
+		}
+	}
+
 	var b strings.Builder
 
 	for _, pn := range s.PartNames {
-		n := string(pn.Name)
-		val, ok := to[n]
-		if !ok {
-			return "", fmt.Errorf("%w: %q", ErrMissingValue, pn.Name)
-		}
+		val := to[string(pn.Name)]
 
 		b.WriteString(string(pn.Part))
 		b.WriteString(val)
-
-		delete(to, n)
-	}
-
-	if len(to) > 0 {
-		return "", fmt.Errorf("%w: %v", ErrExtraValues, to)
 	}
 
 	b.WriteString(string(s.Final))

@@ -8,12 +8,14 @@ import (
 	sub "github.com/Heliodex/substitution"
 )
 
+// Test multiple substitutions of the same name
 var s = sub.Sub{
 	PartNames: []sub.PartName{
 		{Part: "Hello ", Name: "name"},
 		{Part: "! You have ", Name: "count"},
+		{Part: " new messages. Thanks, ", Name: "name"},
 	},
-	Final: " new messages.",
+	Final: "!",
 }
 
 func TestSubstitute(t *testing.T) {
@@ -27,7 +29,7 @@ func TestSubstitute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if result != "Hello Heliodex! You have 67 new messages." {
+	if result != "Hello Heliodex! You have 67 new messages. Thanks, Heliodex!" {
 		t.Fatalf("unexpected result: %s", result)
 	}
 }
@@ -57,7 +59,7 @@ func TestSubstituteExtra(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got result: %s", result)
 	}
-	if !errors.Is(err, sub.ErrExtraValues) {
+	if !errors.Is(err, sub.ErrExtraValue) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -100,8 +102,9 @@ func TestEquals(t *testing.T) {
 		PartNames: []sub.PartName{
 			{Part: "Hello ", Name: "name"},
 			{Part: "! You have ", Name: "count"},
+			{Part: " new messages. Thanks, ", Name: "name"},
 		},
-		Final: " new messages.",
+		Final: "!",
 	}
 
 	if !s.Equals(s2) {
@@ -112,8 +115,9 @@ func TestEquals(t *testing.T) {
 		PartNames: []sub.PartName{
 			{Part: "Sup ", Name: "name"},
 			{Part: ", you got ", Name: "num"},
+			{Part: " new pings. Thanks, ", Name: "name"},
 		},
-		Final: " new pings",
+		Final: "!",
 	}
 
 	if s.Equals(s3) {

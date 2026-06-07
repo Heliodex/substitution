@@ -72,7 +72,7 @@ export class PartName {
 }
 
 export const ErrMissingValue = new Error("missing value for name")
-export const ErrExtraValues = new Error("extra values provided for names")
+export const ErrExtraValue = new Error("extra value provided for name")
 
 export class Sub {
 	constructor(
@@ -81,22 +81,29 @@ export class Sub {
 	) {}
 
 	Sub(to: ToSub): string {
+		const seen = new Set<string>()
+		for (const pn of this.PartNames) {
+			const n = pn.Name
+			if (to[n] === undefined)
+				throw new Error(`${ErrMissingValue.message}: ${n}`)
+			seen.add(n)
+		}
+
+		for (const k in to) {
+			if (!seen.has(k)) throw new Error(`${ErrExtraValue.message}: ${k}`)
+		}
+
 		const b: string[] = []
 
 		for (const pn of this.PartNames) {
-			const n = pn.Name
-			const val = to[n]
+			const val = to[pn.Name]
 			if (val === undefined)
-				throw new Error(`${ErrMissingValue.message}: "${n}"`)
+				// go moment bro moment
+				throw new Error("Missing value should have already been caught")
 
 			b.push(pn.Part)
 			b.push(val)
-
-			delete to[n]
 		}
-
-		if (Object.keys(to).length > 0)
-			throw new Error(`${ErrExtraValues.message}: ${to}`)
 
 		b.push(this.Final)
 
