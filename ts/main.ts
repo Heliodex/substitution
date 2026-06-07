@@ -136,13 +136,3 @@ export class Sub {
 		return new Sub(partNames, deserialiseString(r))
 	}
 }
-
-export default {
-	Sub,
-	PartName,
-	ErrDataTooShort,
-	ErrDataTooShortLength,
-	ErrDataTooShortString,
-	ErrMissingValue,
-	ErrExtraValues,
-}

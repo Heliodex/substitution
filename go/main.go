@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func ReadExact(r io.Reader, buf []byte) error {
+func readExact(r io.Reader, buf []byte) error {
 	n, err := r.Read(buf)
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ var (
 
 func getLen(r io.Reader) (uint32, error) {
 	var lengthBuf [4]byte
-	if ReadExact(r, lengthBuf[:]) != nil {
+	if readExact(r, lengthBuf[:]) != nil {
 		return 0, ErrDataTooShortLength
 	}
 	return binary.BigEndian.Uint32(lengthBuf[:]), nil
@@ -48,7 +48,7 @@ func deserialiseString(r io.Reader) (string, error) {
 	}
 
 	strBuf := make([]byte, l)
-	if ReadExact(r, strBuf) != nil {
+	if readExact(r, strBuf) != nil {
 		return "", ErrDataTooShortString
 	}
 
